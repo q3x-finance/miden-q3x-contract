@@ -1,4 +1,4 @@
-use miden_objects::account::NetworkId;
+use miden_client::address::NetworkId;
 
 // multisig setup
 pub const THRESHOLD: usize = 3;

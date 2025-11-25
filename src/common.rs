@@ -7,17 +7,18 @@ use miden_client::{
     asset::{Asset, FungibleAsset, TokenSymbol},
     auth::AuthSecretKey,
     builder::ClientBuilder,
-    crypto::SecretKey,
     keystore::FilesystemKeyStore,
     note::{
         Note, NoteAssets, NoteExecutionHint, NoteExecutionMode, NoteInputs, NoteMetadata,
         NoteRecipient, NoteScript, NoteTag, NoteType,
     },
-    rpc::{Endpoint, TonicRpcClient},
+    rpc::{Endpoint, GrpcClient},
     transaction::{OutputNote, TransactionRequestBuilder, TransactionScript},
 };
+use miden_client_sqlite_store::ClientBuilderSqliteExt;
+use miden_crypto::dsa::rpo_falcon512::SecretKey;
 use miden_lib::account::{
-    auth::{self, AuthRpoFalcon512},
+    auth::{self, AuthRpoFalcon512, NoAuth},
     faucets::BasicFungibleFaucet,
     wallets::BasicWallet,
 };
@@ -36,6 +37,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+
 use tokio::time::sleep;
 
 use crate::constants::{MULTISIG_CODE_PATH, NETWORK_ID, SIGNER_WEIGHTS, THRESHOLD, TOTAL_WEIGHT};
@@ -90,12 +92,12 @@ pub fn create_library(
 pub async fn instantiate_client(
     endpoint: Endpoint,
 ) -> Result<(Client, FilesystemKeyStore<StdRng>), ClientError> {
-    let timeout_ms = 10_000;
     let keystore = FilesystemKeyStore::new("./keystore".into()).unwrap();
-
-    let rpc_api = Arc::new(TonicRpcClient::new(&endpoint, timeout_ms));
+    let timeout_ms = 10_000;
+    let rpc_client = Arc::new(GrpcClient::new(&endpoint, timeout_ms));
     let client = ClientBuilder::new()
-        .rpc(rpc_api.clone())
+        .rpc(rpc_client.clone())
+        .sqlite_store("store.sqlite".into())
         .filesystem_keystore("./keystore")
         .in_debug_mode(DebugMode::Enabled)
         .build()
@@ -105,7 +107,7 @@ pub async fn instantiate_client(
 }
 
 pub async fn initialize_client_and_multisig()
--> Result<(Client, Account, Word, Vec<Word>, Vec<SecretKey>), Box<dyn std::error::Error>> {
+-> Result<(Client, Account, Vec<Word>, Vec<SecretKey>), Box<dyn std::error::Error>> {
     let endpoint = if NETWORK_ID == NetworkId::Testnet {
         Endpoint::testnet()
     } else {
@@ -121,7 +123,6 @@ pub async fn initialize_client_and_multisig()
 
     let (
         multisig_contract,
-        multisig_seed,
         multisig_key_pair,
         original_signer_pub_keys,
         original_signer_secret_keys,
@@ -134,10 +135,7 @@ pub async fn initialize_client_and_multisig()
     )
     .await?;
 
-    client
-        .add_account(&multisig_contract, Some(multisig_seed.into()), false)
-        .await
-        .unwrap();
+    client.add_account(&multisig_contract, false).await.unwrap();
 
     println!(
         "📄 Multisig contract ID: {}",
@@ -147,7 +145,6 @@ pub async fn initialize_client_and_multisig()
     Ok((
         client,
         multisig_contract,
-        multisig_seed,
         original_signer_pub_keys,
         original_signer_secret_keys,
     ))
@@ -184,12 +181,11 @@ pub async fn create_public_note(
         .own_output_notes(vec![OutputNote::Full(note.clone())])
         .build()
         .unwrap();
-    let tx_result = client
-        .new_transaction(creator_account.id(), note_req)
+    client
+        .submit_new_transaction(creator_account.id(), note_req)
         .await
         .unwrap();
 
-    let _ = client.submit_transaction(tx_result).await;
     client.sync_state().await.unwrap();
 
     Ok(note)
@@ -210,8 +206,8 @@ pub async fn create_basic_faucet(
         .storage_mode(AccountStorageMode::Public)
         .with_auth_component(auth::NoAuth)
         .with_component(BasicFungibleFaucet::new(symbol, decimals, max_supply).unwrap());
-    let (account, seed) = builder.build().unwrap();
-    client.add_account(&account, Some(seed), false).await?;
+    let account = builder.build().unwrap();
+    client.add_account(&account, false).await?;
     keystore
         .add_key(&AuthSecretKey::RpoFalcon512(key_pair))
         .unwrap();
@@ -230,10 +226,10 @@ pub async fn create_basic_account(
     let builder = AccountBuilder::new(init_seed)
         .account_type(AccountType::RegularAccountImmutableCode)
         .storage_mode(AccountStorageMode::Public)
-        .with_auth_component(AuthRpoFalcon512::new(key_pair.public_key().clone()))
+        .with_auth_component(AuthRpoFalcon512::new(key_pair.public_key().clone().into()))
         .with_component(BasicWallet);
-    let (account, seed) = builder.build().unwrap();
-    client.add_account(&account, Some(seed), false).await?;
+    let account = builder.build().unwrap();
+    client.add_account(&account, false).await?;
     keystore
         .add_key(&AuthSecretKey::RpoFalcon512(key_pair.clone()))
         .unwrap();
@@ -247,7 +243,7 @@ pub async fn create_multisig_account(
     num_signers: usize,
     signer_weights: Vec<usize>,
     keystore: FilesystemKeyStore<StdRng>,
-) -> Result<(Account, Word, SecretKey, Vec<Word>, Vec<SecretKey>), ClientError> {
+) -> Result<(Account, SecretKey, Vec<Word>, Vec<SecretKey>), ClientError> {
     let assembler: Assembler = TransactionKernel::assembler().with_debug_mode(true);
 
     // generate keypairs for signers
@@ -304,9 +300,9 @@ pub async fn create_multisig_account(
     let multisig_key_pair = SecretKey::with_rng(client.rng());
 
     let auth_componnet: AccountComponent =
-        AuthRpoFalcon512::new(multisig_key_pair.public_key()).into();
+        AuthRpoFalcon512::new(multisig_key_pair.public_key().clone().into()).into();
 
-    let (multisig_contract, multisig_seed) = AccountBuilder::new(init_seed)
+    let multisig_contract = AccountBuilder::new(init_seed)
         .account_type(AccountType::RegularAccountImmutableCode)
         .storage_mode(AccountStorageMode::Public)
         .with_auth_component(auth_componnet)
@@ -318,7 +314,6 @@ pub async fn create_multisig_account(
         .unwrap();
     Ok((
         multisig_contract,
-        multisig_seed,
         multisig_key_pair,
         signer_pub_keys,
         signers_secret_keys,
@@ -331,7 +326,7 @@ pub async fn create_modular_multisig_account(
     num_signers: usize,
     signer_weights: Vec<usize>,
     keystore: FilesystemKeyStore<StdRng>,
-) -> Result<(Account, Word, SecretKey, Vec<Word>, Vec<SecretKey>), ClientError> {
+) -> Result<(Account, SecretKey, Vec<Word>, Vec<SecretKey>), ClientError> {
     let assembler: Assembler = TransactionKernel::assembler().with_debug_mode(true);
 
     // generate keypairs for signers
@@ -398,37 +393,19 @@ pub async fn create_modular_multisig_account(
     .unwrap()
     .with_supports_all_types();
 
-    let spending_limit_code =
-        fs::read_to_string(Path::new("./masm/accounts/spending_limit.masm")).unwrap();
-
-    let spending_limit_component = AccountComponent::compile(
-        spending_limit_code.clone(),
-        assembler.clone(),
-        vec![StorageSlot::Value(Word::new([
-            threshold,
-            Felt::new(0),
-            Felt::new(0),
-            Felt::new(0),
-        ]))],
-    )
-    .unwrap()
-    .with_supports_all_types();
-
     let mut init_seed = [0_u8; 32];
     client.rng().fill_bytes(&mut init_seed);
 
     let multisig_key_pair = SecretKey::with_rng(client.rng());
 
     let auth_componnet: AccountComponent =
-        AuthRpoFalcon512::new(multisig_key_pair.public_key()).into();
+        AuthRpoFalcon512::new(multisig_key_pair.public_key().clone().into()).into();
 
-    let (multisig_contract, multisig_seed) = AccountBuilder::new(init_seed)
+    let multisig_contract = AccountBuilder::new(init_seed)
         .account_type(AccountType::RegularAccountImmutableCode)
         .storage_mode(AccountStorageMode::Public)
         .with_auth_component(auth_componnet)
         .with_component(multisig_component.clone())
-        .with_component(whitelisting_component.clone())
-        .with_component(spending_limit_component.clone())
         .build()
         .unwrap();
     keystore
@@ -436,7 +413,6 @@ pub async fn create_modular_multisig_account(
         .unwrap();
     Ok((
         multisig_contract,
-        multisig_seed,
         multisig_key_pair,
         signer_pub_keys,
         signers_secret_keys,
@@ -461,14 +437,14 @@ pub fn create_tx_script(
 }
 
 pub fn generate_keypairs(num_keys: usize, client: &mut Client) -> (Vec<SecretKey>, Vec<Word>) {
-    let mut keys = Vec::new();
+    let mut keys: Vec<SecretKey> = Vec::new();
     let mut signer_pub_keys: Vec<Word> = Vec::new();
 
     for _ in 0..num_keys {
         let key = SecretKey::with_rng(client.rng());
         keys.push(key.clone());
 
-        signer_pub_keys.push(key.public_key().into());
+        signer_pub_keys.push(key.public_key().to_commitment());
     }
 
     (keys, signer_pub_keys)
@@ -478,7 +454,7 @@ pub fn generate_keypair(client: &mut Client) -> (SecretKey, Word) {
     let private_key = SecretKey::with_rng(client.rng());
     let public_key = private_key.public_key();
 
-    (private_key, public_key.into())
+    (private_key, public_key.to_commitment())
 }
 
 pub async fn build_and_submit_tx(
@@ -493,11 +469,10 @@ pub async fn build_and_submit_tx(
         .build()
         .unwrap();
 
-    let tx_result = client
-        .new_transaction(account_id, tx_add_signer_request)
+    client
+        .submit_new_transaction(account_id, tx_add_signer_request)
         .await
         .unwrap();
-    let _ = client.submit_transaction(tx_result).await?;
     Ok(())
 }
 
@@ -591,8 +566,14 @@ pub async fn setup_accounts_and_faucets(
                 .build_mint_fungible_asset(asset, account.id(), NoteType::Public, client.rng())
                 .unwrap();
 
-            let tx_exec = client.new_transaction(faucet.id(), tx_request).await?;
-            client.submit_transaction(tx_exec.clone()).await?;
+            let tx_exec = client
+                .execute_transaction(faucet.id(), tx_request.clone())
+                .await?;
+
+            // submit the transaction
+            client
+                .submit_new_transaction(faucet.id(), tx_request)
+                .await?;
 
             // Remember the freshly-created note so we can consume it later
             let minted_note = match tx_exec.created_notes().get_note(0) {
@@ -624,8 +605,9 @@ pub async fn setup_accounts_and_faucets(
                 .build()
                 .unwrap();
 
-            let tx_exec = client.new_transaction(account.id(), consume_req).await?;
-            client.submit_transaction(tx_exec).await?;
+            client
+                .submit_new_transaction(account.id(), consume_req)
+                .await?;
         }
     }
     client.sync_state().await?;
@@ -744,16 +726,6 @@ pub fn create_sha256_note(
     Ok(note)
 }
 
-pub async fn create_no_auth_component() -> Result<AccountComponent, Error> {
-    let assembler: Assembler = TransactionKernel::assembler().with_debug_mode(true);
-    let no_auth_code = fs::read_to_string(Path::new("./masm/auth/no_auth.masm")).unwrap();
-    let no_auth_component = AccountComponent::compile(no_auth_code, assembler.clone(), vec![])
-        .unwrap()
-        .with_supports_all_types();
-
-    Ok(no_auth_component)
-}
-
 pub async fn create_no_auth_faucet(
     client: &mut Client,
     token_symbol: &str,
@@ -764,18 +736,16 @@ pub async fn create_no_auth_faucet(
     let mut init_seed = [0u8; 32];
     client.rng().fill_bytes(&mut init_seed);
 
-    let no_auth_component = create_no_auth_component().await.unwrap();
-
     let symbol = TokenSymbol::new(token_symbol).unwrap();
 
-    let (new_account, seed) = AccountBuilder::new(init_seed)
+    let new_account = AccountBuilder::new(init_seed)
         .account_type(AccountType::FungibleFaucet)
         .storage_mode(storage_mode.into())
         .with_auth_component(auth::NoAuth)
         .with_component(BasicFungibleFaucet::new(symbol, decimals, Felt::new(max_supply)).unwrap())
         .build()
         .unwrap();
-    client.add_account(&new_account, Some(seed), false).await?;
+    client.add_account(&new_account, false).await?;
     Ok(new_account)
 }
 
@@ -786,7 +756,6 @@ pub async fn create_evm_account(
     let mut init_seed = [0u8; 32];
     client.rng().fill_bytes(&mut init_seed);
 
-    let no_auth_component = create_no_auth_component().await.unwrap();
     let account_code = fs::read_to_string(Path::new("./masm/accounts/evm.masm")).unwrap();
     let assembler: Assembler = TransactionKernel::assembler().with_debug_mode(true);
 
@@ -794,14 +763,14 @@ pub async fn create_evm_account(
         .unwrap()
         .with_supports_all_types();
 
-    let (new_account, seed) = AccountBuilder::new(init_seed)
+    let new_account = AccountBuilder::new(init_seed)
         .account_type(AccountType::FungibleFaucet)
         .storage_mode(storage_mode.into())
-        .with_auth_component(no_auth_component)
+        .with_auth_component(NoAuth)
         .with_component(evm_component)
         .build()
         .unwrap();
 
-    client.add_account(&new_account, Some(seed), false).await?;
+    client.add_account(&new_account, false).await?;
     Ok(new_account)
 }

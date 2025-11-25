@@ -1,20 +1,19 @@
 use std::time::Duration;
 
-use masm_project_template::common::{delete_keystore_and_store, wait_for_notes};
+use masm_project_template::common::delete_keystore_and_store;
 use masm_project_template::constants::SYNC_STATE_WAIT_TIME;
 use masm_project_template::{
     common::{create_gift_note_recallable, instantiate_client, setup_accounts_and_faucets},
     constants::NETWORK_ID,
 };
+use miden_client::address::NetworkId;
 use miden_client::rpc::Endpoint;
 use miden_client::transaction::OutputNote;
 use miden_client::{Felt, Word};
 use miden_client::{
     asset::{Asset, FungibleAsset},
-    keystore::FilesystemKeyStore,
     transaction::TransactionRequestBuilder,
 };
-use miden_objects::account::NetworkId;
 use tokio::time::sleep;
 
 #[tokio::test]
@@ -78,9 +77,11 @@ async fn create_and_open_gift_success() -> Result<(), Box<dyn std::error::Error>
         .build()
         .unwrap();
     let tx_exec = client
-        .new_transaction(alice_account.id(), tx_request)
+        .execute_transaction(alice_account.id(), tx_request.clone())
         .await?;
-    client.submit_transaction(tx_exec.clone()).await?;
+    client
+        .submit_new_transaction(alice_account.id(), tx_request)
+        .await?;
 
     // wait for 7 seconds
     sleep(Duration::from_secs(SYNC_STATE_WAIT_TIME)).await;
@@ -101,10 +102,9 @@ async fn create_and_open_gift_success() -> Result<(), Box<dyn std::error::Error>
         .build()
         .unwrap();
 
-    let tx_exec = client
-        .new_transaction(bob_account.id(), consume_req)
+    client
+        .submit_new_transaction(bob_account.id(), consume_req)
         .await?;
-    client.submit_transaction(tx_exec).await?;
 
     sleep(Duration::from_secs(SYNC_STATE_WAIT_TIME)).await;
 
@@ -194,10 +194,13 @@ async fn open_gift_with_wrong_secret() {
         .build()
         .unwrap();
     let tx_exec = client
-        .new_transaction(alice_account.id(), tx_request)
+        .execute_transaction(alice_account.id(), tx_request.clone())
         .await
         .unwrap();
-    client.submit_transaction(tx_exec).await.unwrap();
+    client
+        .submit_new_transaction(alice_account.id(), tx_request)
+        .await
+        .unwrap();
 
     // wait for 7 seconds
     sleep(Duration::from_secs(SYNC_STATE_WAIT_TIME)).await;
@@ -213,9 +216,8 @@ async fn open_gift_with_wrong_secret() {
         .build()
         .unwrap();
 
-    let tx_exec = client
-        .new_transaction(bob_account.id(), consume_req)
+    client
+        .submit_new_transaction(bob_account.id(), consume_req)
         .await
         .unwrap();
-    client.submit_transaction(tx_exec).await.unwrap();
 }

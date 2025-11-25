@@ -20,13 +20,8 @@ async fn remove_signer_success() -> Result<(), Box<dyn std::error::Error>> {
     // -------------------------------------------------------------------------
     // 1. Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await?;
+    let (mut client, multisig_contract, original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await?;
 
     // -------------------------------------------------------------------------
     // STEP 2: Prepare the Script
@@ -87,13 +82,8 @@ async fn remove_signer_with_non_signer() {
     // -------------------------------------------------------------------------
     // 1. Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await.unwrap();
+    let (mut client, multisig_contract, original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await.unwrap();
 
     // -------------------------------------------------------------------------
     // STEP 2: Prepare the Script
@@ -131,13 +121,8 @@ async fn remove_signer_causing_threshold_unreachable() {
     // -------------------------------------------------------------------------
     // 1. Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await.unwrap();
+    let (mut client, multisig_contract, original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await.unwrap();
 
     // -------------------------------------------------------------------------
     // STEP 2: Prepare the Script

@@ -1,6 +1,7 @@
 use.std::sys
 use.miden::contracts::wallets::basic->wallet
-use.miden::account
+use.miden::native_account
+use.miden::active_account
 
 # Weighted multisig contract
 # When initializing, we need to offer signers public keys together with their weights
@@ -56,7 +57,7 @@ export.change_threshold
   push.THRESHOLD_INDEX
   # OS => [THRESHOLD_INDEX, NEW_THRESHOLD, NEW_THRESHOLD, ZERO, ZERO, ZERO]
 
-  exec.account::get_item drop drop drop
+  exec.active_account::get_item drop drop drop
   # OS => [OLD_THRESHOLD, NEW_THRESHOLD, NEW_THRESHOLD, ZERO, ZERO, ZERO]
 
   eq assertz
@@ -68,7 +69,7 @@ export.change_threshold
   push.TOTAL_WEIGHT_INDEX
   # OS => [TOTAL_WEIGHT_INDEX, NEW_THRESHOLD]
 
-  exec.account::get_item drop drop drop
+  exec.active_account::get_item drop drop drop
   # OS => [TOTAL_WEIGHT, NEW_THRESHOLD]
 
   swap.1
@@ -89,7 +90,7 @@ export.change_threshold
   push.THRESHOLD_INDEX
   # OS => [THRESHOLD_INDEX, NEW_THRESHOLD, ZERO, ZERO, ZERO]
 
-  exec.account::set_item
+  exec.native_account::set_item
 
   exec.sys::truncate_stack
   ############# NOTE-STORAGE UPDATE END: UPDATE THRESHOLD ###############
@@ -128,7 +129,7 @@ export.add_signer
   push.PUBKEY_MAP_INDEX
 
   # OS => [PUBKEY_MAP_INDEX, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
-  exec.account::get_map_item
+  exec.active_account::get_map_item
   # OS => [WEIGHT_0, WEIGHT_1, WEIGHT_2, WEIGHT_3, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
 
   swap.3  # move WEIGHT_3 to WEIGHT_0
@@ -164,7 +165,7 @@ export.add_signer
   push.THRESHOLD_INDEX
   # OS => [THRESHOLD_INDEX, NEW_SIGNER_WEIGHT, NEW_SIGNER_WEIGHT, ZERO, ZERO, ZERO, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
 
-  exec.account::get_item
+  exec.active_account::get_item
   # OS => [ZERO, ZERO, ZERO, THRESHOLD, NEW_SIGNER_WEIGHT, NEW_SIGNER_WEIGHT, ZERO, ZERO, ZERO, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
 
   drop drop drop
@@ -182,7 +183,7 @@ export.add_signer
   push.TOTAL_WEIGHT_INDEX
   # OS => [TOTAL_WEIGHT_INDEX, NEW_SIGNER_WEIGHT, NEW_SIGNER_WEIGHT, ZERO, ZERO, ZERO, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
 
-  exec.account::get_item
+  exec.active_account::get_item
   # OS => [ZERO, ZERO, ZERO, TOTAL_WEIGHT_OLD, NEW_SIGNER_WEIGHT, NEW_SIGNER_WEIGHT, ZERO, ZERO, ZERO, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
   
   drop drop drop
@@ -194,7 +195,7 @@ export.add_signer
   push.TOTAL_WEIGHT_INDEX
   # OS => [TOTAL_WEIGHT_INDEX, TOTAL_WEIGHT_NEW, NEW_SIGNER_WEIGHT, ZERO, ZERO, ZERO, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
 
-  exec.account::set_item dropw dropw
+  exec.native_account::set_item dropw dropw
   # OS => [NEW_SIGNER_WEIGHT, ZERO, ZERO, ZERO, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
   ############# NOTE-STORAGE UPDATE END: UPDATE TOTAL WEIGHT ###############
 
@@ -208,7 +209,7 @@ export.add_signer
   push.PUBKEY_MAP_INDEX
   # OS => [PUBKEY_MAP_INDEX, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0, NEW_SIGNER_WEIGHT]
 
-  exec.account::set_map_item # store the new signer with its weight
+  exec.native_account::set_map_item # store the new signer with its weight
   # OS => [OLD_MAP_ROOT_0, OLD_MAP_ROOT_1, OLD_MAP_VALUE_0, OLD_MAP_VALUE_1]
   ############# NOTE-STORAGE UPDATE END: INSERT NEW SIGNER ###############
 
@@ -249,7 +250,7 @@ export.remove_signer
   push.PUBKEY_MAP_INDEX
   # OS => [PUBKEY_MAP_INDEX, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0]
   
-  exec.account::get_map_item drop drop drop dup
+  exec.active_account::get_map_item drop drop drop dup
   # OS => [WEIGHT_OF_SIGNER_TO_REMOVE, WEIGHT_OF_SIGNER_TO_REMOVE, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0]
 
   # the weight should > 0
@@ -269,13 +270,13 @@ export.remove_signer
   dup push.TOTAL_WEIGHT_INDEX
   # OS => [TOTAL_WEIGHT_INDEX, WEIGHT_OF_SIGNER_TO_REMOVE, WEIGHT_OF_SIGNER_TO_REMOVE, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0]
 
-  exec.account::get_item drop drop drop
+  exec.active_account::get_item drop drop drop
   # OS => [TOTAL_WEIGHT, WEIGHT_OF_SIGNER_TO_REMOVE, WEIGHT_OF_SIGNER_TO_REMOVE, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0]
 
   swap.1 sub
   # OS => [REMAINING_WEIGHT, WEIGHT_OF_SIGNER_TO_REMOVE, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0]
 
-  push.THRESHOLD_INDEX exec.account::get_item drop drop drop
+  push.THRESHOLD_INDEX exec.active_account::get_item drop drop drop
   # OS => [THRESHOLD, REMAINING_WEIGHT, WEIGHT_OF_SIGNER_TO_REMOVE, SIGNER_TO_REMOVE_PUBKEY_3, SIGNER_TO_REMOVE_PUBKEY_2, SIGNER_TO_REMOVE_PUBKEY_1, SIGNER_TO_REMOVE_PUBKEY_0]
   
   gte # REMAINING_WEIGHT >= THRESHOLD, 1 if true
@@ -293,7 +294,7 @@ export.remove_signer
 
 
 
-  exec.account::set_map_item
+  exec.native_account::set_map_item
   ############# NOTE-STORAGE UPDATE END: RESET SIGNER WEIGHT TO ZERO ###############
 
   ############# NOTE-STORAGE UPDATE START: UPDATE GLOBAL WEIGHT ###############

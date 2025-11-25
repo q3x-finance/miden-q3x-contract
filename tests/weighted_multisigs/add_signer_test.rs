@@ -11,11 +11,8 @@ use masm_project_template::{
         NEW_SIGNER_PUBKEY_KEY_SLOT, NEW_SIGNER_WEIGHT_KEY_SLOT, SIGNERS_SLOT, SYNC_STATE_WAIT_TIME,
     },
 };
-use miden_client::asset::FungibleAsset;
-use miden_client::keystore::FilesystemKeyStore;
-use miden_client::note::NoteType;
-use miden_client::transaction::TransactionRequestBuilder;
-use miden_objects::{Word, account::NetworkId, vm::AdviceMap};
+
+use miden_objects::{Word, vm::AdviceMap};
 use tokio::time::{Duration, sleep};
 
 #[tokio::test]
@@ -25,13 +22,8 @@ async fn add_signer_success() -> Result<(), Box<dyn std::error::Error>> {
     // -------------------------------------------------------------------------
     // Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await?;
+    let (mut client, multisig_contract, original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await?;
 
     println!("📄 Multisig contract ID: {}", multisig_contract.id());
 
@@ -117,13 +109,8 @@ async fn add_signer_with_same_public_key() {
     // -------------------------------------------------------------------------
     // Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await.unwrap();
+    let (mut client, multisig_contract, original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await.unwrap();
 
     // -------------------------------------------------------------------------
     // STEP 2: Prepare the Script
@@ -162,13 +149,8 @@ async fn add_signer_with_invalid_weight() {
     // -------------------------------------------------------------------------
     // Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        _original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await.unwrap();
+    let (mut client, multisig_contract, _original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await.unwrap();
 
     // -------------------------------------------------------------------------
     // STEP 2: Prepare the Script

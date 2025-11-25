@@ -9,7 +9,7 @@ use masm_project_template::{
     },
 };
 use miden_client::Word;
-use miden_objects::{account::NetworkId, vm::AdviceMap};
+use miden_objects::vm::AdviceMap;
 use tokio::time::{Duration, sleep};
 
 #[tokio::test]
@@ -19,13 +19,8 @@ async fn change_threshold_success() -> Result<(), Box<dyn std::error::Error>> {
     // -------------------------------------------------------------------------
     // Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        _original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await?;
+    let (mut client, multisig_contract, _original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await?;
 
     println!("📄 Multisig contract ID: {}", multisig_contract.id());
 
@@ -89,13 +84,8 @@ async fn change_threshold_with_same_threshold() {
     // -------------------------------------------------------------------------
     // Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        _original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await.unwrap();
+    let (mut client, multisig_contract, _original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await.unwrap();
 
     println!("📄 Multisig contract ID: {}", multisig_contract.id());
 
@@ -136,13 +126,8 @@ async fn change_threshold_with_invalid_threshold() {
     // -------------------------------------------------------------------------
     // Instantiate client
     // -------------------------------------------------------------------------
-    let (
-        mut client,
-        multisig_contract,
-        _multisig_seed,
-        _original_signer_pub_keys,
-        _original_signer_secret_keys,
-    ) = initialize_client_and_multisig().await.unwrap();
+    let (mut client, multisig_contract, _original_signer_pub_keys, _original_signer_secret_keys) =
+        initialize_client_and_multisig().await.unwrap();
 
     // -------------------------------------------------------------------------
     // STEP 1: Prepare the Script for change threshold

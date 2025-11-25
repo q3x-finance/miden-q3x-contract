@@ -1,24 +1,17 @@
+use miden_client::address::NetworkId;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 
 use masm_project_template::common::{
-    create_basic_account, create_sha256_note, delete_keystore_and_store, prepare_felt_vec,
-    wait_for_notes,
+    create_basic_account, create_sha256_note, delete_keystore_and_store, instantiate_client,
+    prepare_felt_vec,
 };
+use masm_project_template::constants::NETWORK_ID;
 use masm_project_template::constants::SYNC_STATE_WAIT_TIME;
-use masm_project_template::{
-    common::{create_gift_note_recallable, instantiate_client, setup_accounts_and_faucets},
-    constants::NETWORK_ID,
-};
 use miden_client::Felt;
 use miden_client::rpc::Endpoint;
 use miden_client::transaction::OutputNote;
-use miden_client::{
-    asset::{Asset, FungibleAsset},
-    keystore::FilesystemKeyStore,
-    transaction::TransactionRequestBuilder,
-};
-use miden_objects::account::NetworkId;
+use miden_client::transaction::TransactionRequestBuilder;
 use miden_objects::vm::AdviceMap;
 use tokio::time::sleep;
 
@@ -86,8 +79,12 @@ async fn sha256_test() -> Result<(), Box<dyn std::error::Error>> {
         .own_output_notes(vec![output_note])
         .build()
         .unwrap();
-    let tx_exec = client.new_transaction(account.id(), tx_request).await?;
-    client.submit_transaction(tx_exec.clone()).await?;
+    let tx_exec = client
+        .execute_transaction(account.id(), tx_request.clone())
+        .await?;
+    client
+        .submit_new_transaction(account.id(), tx_request.clone())
+        .await?;
 
     // wait for 7 seconds
     sleep(Duration::from_secs(SYNC_STATE_WAIT_TIME)).await;
@@ -128,8 +125,9 @@ async fn sha256_test() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .unwrap();
 
-    let tx_exec = client.new_transaction(account.id(), consume_req).await?;
-    client.submit_transaction(tx_exec).await?;
+    client
+        .submit_new_transaction(account.id(), consume_req)
+        .await?;
 
     Ok(())
 }

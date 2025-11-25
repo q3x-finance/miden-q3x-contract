@@ -4,6 +4,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use anyhow::Context;
 use core::ops::{Deref, DerefMut};
+use miden_lib::account::auth::AuthRpoFalcon512MultisigConfig;
 use rand::RngCore;
 use rand::rngs::StdRng;
 use std::path::PathBuf;
@@ -16,10 +17,10 @@ use miden_client::ClientError;
 use miden_client::account::AccountFile;
 use miden_client::account::component::{AuthRpoFalcon512Multisig, BasicWallet};
 use miden_client::account::{Account, AccountBuilder, AccountId, AccountStorageMode, AccountType};
-use miden_client::auth::TransactionAuthenticator;
+use miden_client::auth::{PublicKeyCommitment, TransactionAuthenticator};
 use miden_client::builder::ClientBuilder;
 use miden_client::keystore::FilesystemKeyStore;
-use miden_client::rpc::Endpoint;
+use miden_client::rpc::{Endpoint, GrpcClient};
 use miden_client::transaction::TransactionExecutorError;
 use miden_client::{Felt, Word, ZERO};
 use miden_objects::Hasher;
@@ -43,7 +44,7 @@ pub enum MultisigClientError {
 
 /// A client for interacting with Miden multisig accounts.
 pub struct MultisigClient<AUTH: TransactionAuthenticator + Sync + 'static> {
-    client: Client<AUTH>,
+    pub client: Client<AUTH>,
 }
 
 impl MultisigClient<FilesystemKeyStore<StdRng>> {
@@ -71,10 +72,13 @@ impl MultisigClient<FilesystemKeyStore<StdRng>> {
             .map_err(anyhow::Error::msg)
             .with_context(|| format!("failed to parse node url: {node_url}"))?;
 
+        let endpoint = Endpoint::testnet();
+        let timeout_ms = 10_000;
+        let rpc_client = Arc::new(GrpcClient::new(&endpoint, timeout_ms));
+
         let mut client = ClientBuilder::new()
-            .tonic_rpc_client(&endpoint, Some(timeout.as_millis() as u64))
+            .rpc(rpc_client)
             .authenticator(Arc::new(keystore))
-            .sqlite_store(store_path.to_str().context("invalid store path")?)
             .build()
             .await?;
 
@@ -102,12 +106,21 @@ impl<AUTH: TransactionAuthenticator + Sync + 'static> DerefMut for MultisigClien
 
 impl<AUTH: TransactionAuthenticator + Sync + 'static> MultisigClient<AUTH> {
     /// Sets up a new multisig account with the specified approvers and threshold.
-    pub async fn setup_account(&mut self, approvers: Vec<PublicKey>, threshold: u32) -> Account {
+    pub async fn setup_account(
+        &mut self,
+        approvers: Vec<PublicKeyCommitment>,
+        threshold: u32,
+    ) -> Account {
         let mut init_seed = [0u8; 32];
         self.rng().fill_bytes(&mut init_seed);
 
-        let multisig_auth_component = AuthRpoFalcon512Multisig::new(threshold, approvers).unwrap();
-        let (multisig_account, seed) = AccountBuilder::new(init_seed)
+        let multisig_auth_component = AuthRpoFalcon512Multisig::new(
+            AuthRpoFalcon512MultisigConfig::new(approvers, threshold)
+                .unwrap()
+                .into(),
+        )
+        .unwrap();
+        let multisig_account = AccountBuilder::new(init_seed)
             .with_auth_component(multisig_auth_component)
             .account_type(AccountType::RegularAccountImmutableCode)
             .storage_mode(AccountStorageMode::Public)
@@ -115,9 +128,7 @@ impl<AUTH: TransactionAuthenticator + Sync + 'static> MultisigClient<AUTH> {
             .build()
             .unwrap();
 
-        self.add_account(&multisig_account, Some(seed), false)
-            .await
-            .unwrap();
+        self.add_account(&multisig_account, false).await.unwrap();
 
         multisig_account
     }
@@ -131,7 +142,9 @@ impl<AUTH: TransactionAuthenticator + Sync + 'static> MultisigClient<AUTH> {
         account_id: AccountId,
         transaction_request: TransactionRequest,
     ) -> Result<TransactionSummary, MultisigClientError> {
-        let tx_result = self.new_transaction(account_id, transaction_request).await;
+        let tx_result = self
+            .execute_transaction(account_id, transaction_request)
+            .await;
 
         match tx_result {
             Ok(_) => Err(MultisigClientError::TxProposalError(
@@ -175,7 +188,7 @@ impl<AUTH: TransactionAuthenticator + Sync + 'static> MultisigClient<AUTH> {
 
         // TODO as sanity check we should verify that we have enough signatures
 
-        self.new_transaction(account.id(), transaction_request)
+        self.execute_transaction(account.id(), transaction_request)
             .await
             .map_err(|e| MultisigClientError::TxExecutionError(e.to_string()))
     }

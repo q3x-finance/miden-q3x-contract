@@ -1,7 +1,5 @@
 use.std::sys
 
-export.validate
-  
-
+export.validate_whitelisting
   exec.sys::truncate_stack
 end

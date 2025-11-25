@@ -22,7 +22,6 @@ async fn deploy_multisig() -> Result<(), ClientError> {
 
     let (
         multisig_contract,
-        multisig_seed,
         _multisig_key_pair,
         _original_signer_pub_keys,
         _original_signer_secret_keys,
@@ -35,10 +34,7 @@ async fn deploy_multisig() -> Result<(), ClientError> {
     )
     .await?;
 
-    client
-        .add_account(&multisig_contract, Some(multisig_seed), false)
-        .await
-        .unwrap();
+    client.add_account(&multisig_contract, false).await.unwrap();
 
     Ok(())
 }

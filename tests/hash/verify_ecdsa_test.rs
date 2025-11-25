@@ -1,28 +1,15 @@
-use std::time::Duration;
-
 use masm_project_template::common::{
     build_and_submit_tx, create_evm_account, delete_keystore_and_store, prepare_felt_vec,
-    prepare_script, wait_for_notes,
+    prepare_script,
 };
-use masm_project_template::constants::{
-    EVM_CODE_PATH, EVM_LIBRARY_PATH, LIBRARY_PATH, SYNC_STATE_WAIT_TIME, VERIFY_ECDSA_SCRIPT_PATH,
-};
-use masm_project_template::{
-    common::{create_gift_note_recallable, instantiate_client, setup_accounts_and_faucets},
-    constants::NETWORK_ID,
-};
+use masm_project_template::constants::{EVM_CODE_PATH, EVM_LIBRARY_PATH, VERIFY_ECDSA_SCRIPT_PATH};
+use masm_project_template::{common::instantiate_client, constants::NETWORK_ID};
 use miden_client::Felt;
 use miden_client::account::AccountStorageMode;
+use miden_client::address::NetworkId;
 use miden_client::rpc::Endpoint;
-use miden_client::transaction::OutputNote;
-use miden_client::{
-    asset::{Asset, FungibleAsset},
-    keystore::FilesystemKeyStore,
-    transaction::TransactionRequestBuilder,
-};
-use miden_objects::account::NetworkId;
+
 use miden_objects::vm::AdviceMap;
-use tokio::time::sleep;
 
 struct Point {
     x: Vec<u64>,

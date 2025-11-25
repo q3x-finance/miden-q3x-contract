@@ -14,7 +14,6 @@ A playground for playing around MASM and rust client
     - [Add Signer](#add-signer)
     - [Remove Signer](#remove-signer)
     - [Change Threshold](#change-threshold)
-  - [Multisig signature verification](#multisig-signature-verification)
   - [Gift](#gift)
     - [Create Gift](#create-gift)
   - [Verify ECDSA](#verify-ecdsa)
@@ -110,16 +109,6 @@ cargo test change_threshold_with_invalid_threshold --release -- --nocapture --te
 
 ---
 
-## Multisig signature verification
-
-Sign message and verify on contract:
-
-```bash
-cargo test signature_verification --release -- --nocapture --test-threads=1
-```
-
----
-
 ## Gift
 
 ### Create Gift
@@ -147,5 +136,3 @@ Verify ECDSA success:
 ```bash
 cargo test verify_ecdsa_success --release -- --nocapture --test-threads=1
 ```
-
----
