@@ -36,7 +36,7 @@ const.ALREADY_SIGNER=1111
 #! - Same threshold
 #! - Threshold bigger than total weight
 export.change_threshold
-  push.0.0.0.0 # new signer pubkey index
+  push.1.0.0.0 # new signer pubkey index
   # OS => [NEW_THRESHOLD_INDEX]
   # AS => []
 
@@ -110,7 +110,8 @@ end
 #! - the signer to add already a signer
 #! - the signer weight to add is exceeding threshold
 export.add_signer
-  push.0.0.0.0 # new signer pubkey index
+
+  push.1.0.0.0 # new signer pubkey index
   # OS => [NEW_SIGNER_PUBKEY_INDEX]
   # AS => []
 
@@ -143,7 +144,7 @@ export.add_signer
 
   ############# NOTE-ASSERT END: CHECK IF SIGNER EXIST ###############
 
-  push.1.0.0.0 # new signer weight index
+  push.2.0.0.0 # new signer weight index
   # OS => [NEW_SIGNER_WEIGHT_INDEX, NEW_SIGNER_PUBKEY_3, NEW_SIGNER_PUBKEY_2, NEW_SIGNER_PUBKEY_1, NEW_SIGNER_PUBKEY_0]
   # AS =0.0.0> []
 
@@ -231,7 +232,7 @@ end
 #! - the signer to remove will make the total weight cant reach the threshold
 #! - the pubkey to remove is not a signer
 export.remove_signer
-  push.0.0.0.0 # new signer pubkey index
+  push.1.0.0.0 # new signer pubkey index
   # OS => [SIGNER_TO_REMOVE_INDEX]
   # AS => []
 
@@ -308,7 +309,6 @@ end
 
 
 export.is_valid_signer_signature
-  
   exec.sys::truncate_stack
 end 
 

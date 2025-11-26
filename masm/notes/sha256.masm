@@ -67,10 +67,10 @@ end
 
 # input: Advice map key `1` and `2` is the secret
 begin
-    push.1.0.0.0 
+    push.2.0.0.0 
     adv.push_mapval
     adv_loadw
-    push.0.0.0.0 
+    push.1.0.0.0 
     adv.push_mapval
     adv_loadw
 

@@ -111,11 +111,11 @@ async fn sha256_test() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut advice_map = AdviceMap::default();
     advice_map.insert(
-        prepare_felt_vec(0 as u64).into(),
+        prepare_felt_vec(1 as u64).into(),
         vec![words[3], words[2], words[1], words[0]],
     );
     advice_map.insert(
-        prepare_felt_vec(1 as u64).into(),
+        prepare_felt_vec(2 as u64).into(),
         vec![words[7], words[6], words[5], words[4]],
     );
 

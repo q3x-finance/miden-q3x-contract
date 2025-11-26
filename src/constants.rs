@@ -18,14 +18,14 @@ pub const MESSAGE_HASH_SLOT: usize = 4;
 pub const INVALID_WEIGHT: usize = 100;
 
 // advice map location for change threshold
-pub const NEW_THRESHOLD_AS_KEY_SLOT: usize = 0;
+pub const NEW_THRESHOLD_AS_KEY_SLOT: usize = 1;
 
 // advice map location for add signer
-pub const NEW_SIGNER_PUBKEY_KEY_SLOT: usize = 0;
-pub const NEW_SIGNER_WEIGHT_KEY_SLOT: usize = 1;
+pub const NEW_SIGNER_PUBKEY_KEY_SLOT: usize = 1;
+pub const NEW_SIGNER_WEIGHT_KEY_SLOT: usize = 2;
 
 // advice map location for remove signer
-pub const SIGNER_TO_REMOVE_KEY_SLOT: usize = 0;
+pub const SIGNER_TO_REMOVE_KEY_SLOT: usize = 1;
 
 // file location
 pub const MULTISIG_CODE_PATH: &str = "./masm/accounts/multisig.masm";

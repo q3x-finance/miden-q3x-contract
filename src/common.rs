@@ -487,7 +487,8 @@ pub fn prepare_script(
 ) -> Result<TransactionScript, Error> {
     let script_code = fs::read_to_string(Path::new(script_path)).unwrap();
     let account_code = fs::read_to_string(Path::new(account_code_path)).unwrap();
-    let library = create_library(library_path.to_string(), &account_code).unwrap();
+
+    let library = create_library(account_code, library_path).unwrap();
 
     let tx_script = create_tx_script(script_code, Some(library)).unwrap();
 
