@@ -1,7 +1,7 @@
 use masm_project_template::common::{create_no_auth_faucet, instantiate_client};
 use miden_client::{
     account::{AccountId, AccountStorageMode, Address, AddressInterface},
-    address::{AddressId, NetworkId},
+    address::{AddressId, NetworkId, RoutingParameters},
     asset::FungibleAsset,
     note::NoteType,
     rpc::Endpoint,
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("sync_height: {}", sync_height);
 
     // deploy fungible assets without the need of auth
-    let account = create_no_auth_faucet(
+    let faucet = create_no_auth_faucet(
         &mut client,
         "QWAP",
         1000000000000000000,
@@ -27,25 +27,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    // let addr: AddressId = AddressId::from(account.id());
+    let faucet_address_id = AddressId::from(faucet.id());
+    let faucet_address = Address::new(faucet_address_id);
+    let faucet_address = faucet_address
+        .with_routing_parameters(RoutingParameters::new(AddressInterface::BasicWallet))
+        .unwrap();
 
-    let addr_id = AccountId::from_bech32("mtst1qzx905defy842yr7sgnh7pxpqpcqq86aypm")
+    // print out the faucet bech32 address
+    println!(
+        "Faucet bech32 address: {}",
+        faucet_address.encode(NetworkId::Testnet)
+    );
+
+    let addr = Address::decode("mtst1apr3e492put8ayrsrz7wklh30sp0048t_qruqqypuyph")
         .unwrap()
         .1;
+    let addr_id = addr.id();
+
+    let account_id = match addr_id {
+        AddressId::AccountId(account_id) => account_id,
+        _ => panic!("Invalid address ID"),
+    };
 
     // mint qash to
     let transaction_request = TransactionRequestBuilder::new()
         .build_mint_fungible_asset(
-            FungibleAsset::new(account.id(), 100000000000000).unwrap(),
-            addr_id,
+            FungibleAsset::new(faucet.id(), 100000000000000).unwrap(),
+            account_id,
             NoteType::Public,
             client.rng(),
         )
         .unwrap();
 
     client
-        .submit_new_transaction(account.id(), transaction_request)
+        .submit_new_transaction(faucet.id(), transaction_request)
         .await?;
-    println!("Minted 100 tokens for mtst1qzx905defy842yr7sgnh7pxpqpcqq86aypm.",);
+    println!("Minted 100 tokens for mtst1apr3e492put8ayrsrz7wklh30sp0048t_qruqqypuyph.",);
     Ok(())
 }
