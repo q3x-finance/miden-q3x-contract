@@ -61,7 +61,7 @@ Add a new signer with the same public key (should fail):
 cargo test add_signer_with_same_public_key --release -- --nocapture --test-threads=1
 ```
 
-Add a new signer with invalid weight (should fail):
+Add a new signer with an invalid weight (should fail):
 
 ```bash
 cargo test add_signer_with_invalid_weight --release -- --nocapture --test-threads=1
@@ -119,7 +119,7 @@ Create and consume gift success:
 cargo test create_and_open_gift_success --release -- --nocapture --test-threads=1
 ```
 
-Create and consume gift fail with wrong secret:
+Create and consume gift fails withthe  wrong secret:
 
 ```bash
 cargo test open_gift_with_wrong_secret --release -- --nocapture --test-threads=1
